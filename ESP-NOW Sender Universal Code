@@ -1,0 +1,65 @@
+// ESP-NOW Sender Universal Code
+
+#include <esp_now.h>
+#include <WiFi.h>
+
+// Receiver ESP32 MAC Address (CHANGE THIS)
+uint8_t receiverMAC[] = {0x24, 0x6F, 0x28, 0xAA, 0xBB, 0xCC};
+
+typedef struct SensorData {
+  float temperature;
+  float humidity;
+} SensorData;
+
+SensorData sendData;
+
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+
+  Serial.print("Send Status: ");
+
+  if (status == ESP_NOW_SEND_SUCCESS) {
+    Serial.println("Success");
+  } 
+  else {
+    Serial.println("Fail");
+  }
+}
+
+void setup() {
+
+  Serial.begin(115200);
+
+  WiFi.mode(WIFI_STA);
+
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("ESP-NOW Init Failed");
+    return;
+  }
+
+  esp_now_register_send_cb(OnDataSent);
+
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(peerInfo.peer_addr, receiverMAC, 6);
+
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+    Serial.println("Peer Add Failed");
+    return;
+  }
+
+  Serial.println("ESP-NOW Sender Started");
+}
+
+void loop() {
+
+  sendData.temperature = random(250,350) / 10.0;
+  sendData.humidity = random(500,800) / 10.0;
+
+  esp_now_send(receiverMAC, (uint8_t *)&sendData, sizeof(sendData));
+
+  Serial.println("Data Sent");
+
+  delay(2000);
+}
